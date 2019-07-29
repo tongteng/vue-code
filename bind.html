@@ -22,7 +22,7 @@
         console.log('获取到数据了');
       },
       set(val) {
-        console.log('数据更新了');
+        console.log('数据 更新了');
         $input.value = val;
         $span.innerHTML = val;
       }
@@ -33,17 +33,46 @@
       obj.txt = e.target.value;
     }, false)
     */
+  const Vue = (function() {
+    let uid = 0;
 
+    class Dep {
+      constructor() {
+        // 定义一个收集对应属性依赖的容器
+        this.subs = [];
+        // 设置id，用于区分新watcher和只改变属性值后新产生的watcher
+        this.id = uid++;
+      }
+      depend() {
+        Dep.target.addDep(this);
+      }
+      // 收集依赖的方法
+      addSub(sub) {
+        // Dep.target是一个全局变量，用于存储当前的一个watcher
+        this.subs.push(sub);
+      }
+      // set方法被触发时会通知依赖
+      notify() {
+        this.subs.forEach(sub => sub.update());
+      }
+    }
 
-    
+    Dep.target = null;
+
 
     // 定义一个类供传入监听数据
     class Observer {
       constructor(data) {
-        let keys = Object.keys(data);
-        for (let i = 0; i < keys.length; i ++) {
-          defineReactive(data, keys[i], data[keys[i]]);
-        }
+        this.data = data;
+        this.walk(data);
+      }
+      // 遍历属性值并监听
+      walk(data) {
+        Object.keys(data).forEach(key => this.convert(key, data[key]));
+      }
+      // 执行监听的具体方法
+      convert(key, val) {
+        defineReactive(this.data, key, val);
       }
     }
 
@@ -57,18 +86,19 @@
         configurable: true,
         enumerable: true,
         get() {
-          dep.addSub(); // get触发时会触发addSub来收集当前的Dep.target，即watcher
+          if (Dep.target) {
+            dep.depend();
+          }
+          // dep.addSub(); // get触发时会触发addSub来收集当前的Dep.target，即watcher
           return val;
         },
         set(newVal) {
-          if (newVal === val) {
-            return;
-          } else {
-            val = newVal;
-            // 新值也要劫持
-            observer(newVal);
-            dep.notify(); // 通知对应的依赖
-          }
+          if (newVal === val) return;
+          val = newVal;
+          // 新值也要劫持
+          observer(newVal);
+          // 通知所有订阅者，数值被改变
+          dep.notify();
         }
       })
     }
@@ -83,59 +113,115 @@
       }
     }
 
-    class Dep {
-      constructor() {
-        // 定义一个收集对应属性依赖的容器
-        this.subs = [];
+
+    class Watcher {
+      // 第一个参数为表达式，第二个参数为回调函数
+      constructor(vm, exp, cb) {
+        this.depIds = {}; // hash储存订阅者id，避免重复的订阅者
+        this.vm = vm; // 被订阅的数据一定来自于当前vue实例
+        this.exp = exp; // 被订阅的数据
+        this.cb = cb; // 当数据更新时想要做的事
+        this.val = this.get(); // 维护更新之前的数据
       }
-      // 收集依赖的方法
-      addSub() {
-        // Dep.target是一个全局变量，用于存储当前的一个watcher
-        this.subs.push(Dep.target);
+      // 对外暴露的接口，用于在订阅的数据被更新时，由订阅者管理员(Dep)调用
+      update() {
+        this.run();
       }
-      // set方法被触发时会通知依赖
-      notify() {
-        for (let i = 0; i < this.subs.length; i++) {
-          this.subs[i].cb();
+      addDep(dep) {
+        // 如果在depIds的hash中没有当前的id，就可以判断事新的watcher，因此就可以添加到dep的数组中储存
+        // 此判断事避免同id的watcher被多次储存
+        if (!this.depIds.hasOwnProperty(dep.id)) {
+          dep.addSub(this);
+          this.depIds[dep.id] = dep;
         }
       }
-    }
-
-    Dep.target = null;
-
-    class Watch {
-      // 第一个参数为表达式，第二个参数为回调函数
-      constructor(exp, cb) {
-        this.exp = exp;
-        this.cb = cb;
+      run() {
+        const val = this.get();
+        if (val !== this.val) {
+          this.val = val;
+          this.cb.call(this.vm, val);
+        }
+      }
+      get() {
+        // 当前订阅者(watcher)读取被订阅数据的最新更新后的值时，通知订阅者管理员收集当前订阅者
         Dep.target = this;
-        data[exp]; //data[exp]这句话是不是表示在取某个值，如果exp为a的话，那就表示data.a，在这之前data下的属性已经被我们劫持为访问器属性了，那这就表明我们能触发对应属性的get函数，那这就与observer产生了关联，那既然如此，那在触发get函数的时候能不能把触发者Watch给收集起来呢？此时就得需要一个桥梁Dep来协助了。
+        const val = this.vm._data[this.exp];//data[exp]这句话是不是表示在取某个值，如果exp为a的话，那就表示data.a，在这之前data下的属性已经被我们劫持为访问器属性了，那这就表明我们能触发对应属性的get函数，那这就与observer产生了关联，那既然如此，那在触发get函数的时候能不能把触发者Watch给收集起来呢？此时就得需要一个桥梁Dep来协助了。
+        // 置空，用于下一个watcher使用
+        Dep.target = null;
+        return val;
       }
     }
 
-    let data = {
-      a: 1,
-      b: {
-        c: 3
+    class Vue {
+      constructor(options = {}) {
+        // 简化了$options的处理
+        this.$options = options;
+        // 简化了对data的处理
+        let data = (this._data = this.$options.data);
+        // 将所有data最外层属性代理到Vue实例上
+        Object.keys(data).forEach(key => this._proxy(key));
+        // 监听数据
+        observer(data);
       }
-    };
+      // 对外暴露调用订阅者的接口，内部主要在指令中使用订阅者
+      $watch(exp, cb) {
+        new Watcher(this, exp, cb);
+      }
+      _proxy(key) {
+        Object.defineProperty(this, key, {
+          configurable: true,
+          enumerable: true,
+          get() {
+            return this._data[key];
+          },
+          set(val) {
+            this._data[key] = val;
+          }
+        })
+      }
+    }
 
-    observer(data);
+    return Vue;
+  })();
 
-    // 监听订阅数据的data的属性
-    new Watch('a', () => {
-      alert(1);
-    });
+  let demo = new Vue({
+    data: {
+      text: '',
+    },
+  });
+  let $input = document.getElementById('input');
+  let $span = document.getElementById('span');
 
-    new Watch('b', () => {
-      alert(2);
-    });
+  $input.addEventListener('keyup', (e) => {
+    demo.text = e.target.value;
+  })
 
-    new Watch('b.c', () => {
-      alert(3);
-    });
+  demo.$watch('text', str => $span.innerHTML = str);
+   
 
-    data.b = 2;
+    // let data = {
+    //   a: 1,
+    //   b: {
+    //     c: 3
+    //   }
+    // };
+
+    // observer(data);
+
+    // // 监听订阅数据的data的属性
+    // new Watch('a', () => {
+    //   alert(1);
+    // });
+
+    // new Watch('b', () => {
+    //   alert(2);
+    // });
+
+    // new Watch('b.c', () => {
+    //   alert(3);
+    // });
+
+    // data.b = 2;
 
 
 
