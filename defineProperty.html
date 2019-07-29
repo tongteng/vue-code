@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+    // Object.defineProperty(obj, prop, desc) obj: 需要定义属性的当前对象，prop：当前需要定义的属性名，desc：属性描述符
+    let Person = {};
+    let temp = null;
+    Object.defineProperty(Person, 'name', {
+      get: () => {
+        return temp || '';
+      },
+      set: (val) => {
+        console.log('set'+val);
+        temp = val;
+      }
+    });
+    Person.name = 'didi';
+    console.log(Person.name);
+
+    // let Person = {};
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'jack', // 属性值
+    //   configurable: true, // 当前属性可否配置（删除，重新定义）
+    //   writable: false, // 是否可通过赋值的形式更改属性的值
+    // });
+    // console.log(Person.name);
+    // delete Person.name; // 删除不生效
+    // console.log(Person.name);
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'rose'
+    // }); // Uncaught TypeError: Cannot redefine property: name 当configurable或者writable为true时可生效，否则不生效
+    // console.log(Person.name);
+    // Person.name = 'xixi';
+    // console.log(Person.name);
+
+
+    // let Person = {};
+
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'jack',
+    //   enumerable: false // 是否可遍历
+    // });
+
+    // Person.gender = 'male';
+
+    // Object.defineProperty(Person, 'age', {
+    //   value: 24,
+    //   enumerable: true // 是否可遍历
+    // });
+
+    // console.log(Object.keys(Person));
+    // for (let k in Person) {
+    //   console.log(k);
+    // }
+
+
+    // let Person = {};
+
+    // Person.gender = 'male';
+    // // 等价于
+    // Object.defineProperty(Person, 'gender', {
+    //   value: 'male',
+    //   enumerable: true,
+    //   configurable: true,
+    //   writable: true
+    // });
+
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'didi'
+    // });
+    // // 等价于
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'didi',
+    //   configurable: false,
+    //   writable: false,
+    //   enumerable: false
+    // })
+
+
+
+    // 通过以上可以总结
+    // 1、不变性
+    // 对象常量(结合configurable: false和writable: false就能够创建一个正常的常量属性，不可修改，不可重新定义或者删除)
+    // let Person = {};
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'didi',
+    //   configurable: false,
+    //   writable: false,
+    // });
+    // delete Person.name; // 不可修改
+    // Person.name = 'haha'; // 不可重新赋值
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'xixi'
+    // }); // 不可重新定义属性
+    // Person.gender = 'male'; // 可以添加属性，但不可更改现有属性
+
+
+    // 禁止扩展(如果想禁止一个对象添加新的属性并且保留已有属性，就可以使用Object.preventExtensions(...))
+    // let Person = {
+    //   name: 'jack',
+    // };
+    // Object.preventExtensions(Person);
+    // Person.gender = 'male';
+    // console.log(Person.gender); // 非严格模式下会默认赋值失败，严格模式下会抛出异常
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'tongteng',
+    //   configurable: false,
+    //   writable: false
+    // }); // 但是可以通过重新配置属性来给赋值
+    // console.log(Person.name);
+
+
+    // 密封(Object.seal()会创建一个密封的对象，这个方法实际上会在一个现有对象上调用Object.preventExtensions(...)并把所有现有属性标记为configurable: false)
+    // let Person = {
+    //   name: 'jack'
+    // };
+    // Object.seal(Person);
+    // Person.gender = 'male';
+    // console.log(Person.gender); // 不能扩展属性
+    // Person.name = 'xixi';
+    // console.log(Person.name); // 可以重新赋值属性值
+    // console.log(Object.keys(Person)); // ['name']
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'rose',
+    //   configurable: true
+    // }); // Cannot redefine property: name不能重新定义属性
+    // // 对象密封之后不仅不能添加新的属性，也不能重新配置或者删除现有属性，但是可以通过重新赋值的方式改变属性值
+
+
+    // 冻结(Object.freeze()会创建一个冻结对象，这个方法实际上是先调用了Object.seal()密封方法先将对象密封，然后将对象中所有现有属性标记为writable: false，这样在密封的基础上也不能通过重新赋值的方式去改变属性值)
+    // let Person = {
+    //   name: 'tongteng'
+    // };
+    // Object.freeze(Person);
+    // console.log(Person.name);
+    // Person.gender = 'male';
+    // console.log(Person.gender); // 不能扩展属性
+    // Person.name = 'xixi';
+    // console.log(Person.name); // 不能重新赋值
+    // console.log(Object.keys(Person)); // ['name']
+    // Object.defineProperty(Person, 'name', {
+    //   value: 'xixi',
+    //   configurable: true
+    // }); // Cannot redefine property: name 不能重新定义属性
+    // // 总的来说freeze就是在seal的基础上，把seal支持的可以重新赋值属性操作给去掉了，在对象被冻结之后，不能进行任何操作，只能读取
+  </script>
+</body>
+</html>

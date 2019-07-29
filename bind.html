@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <input type="text" id="input">
+  <span id="span"></span>
+  <script>
+    /* // 简单实现一个数据绑定
+    let obj = {};
+    let $input = document.getElementById('input');
+    let $span = document.getElementById('span');
+
+    Object.defineProperty(obj, 'txt', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        console.log('获取到数据了');
+      },
+      set(val) {
+        console.log('数据更新了');
+        $input.value = val;
+        $span.innerHTML = val;
+      }
+    })
+
+    $input.addEventListener('keyup', (e) => {
+      let event = e || window.event;
+      obj.txt = e.target.value;
+    }, false)
+    */
+
+
+    
+
+    // 定义一个类供传入监听数据
+    class Observer {
+      constructor(data) {
+        let keys = Object.keys(data);
+        for (let i = 0; i < keys.length; i ++) {
+          defineReactive(data, keys[i], data[keys[i]]);
+        }
+      }
+    }
+
+    // 使用Object.defineProperty
+    function defineReactive(data, key, val) {
+      // 每次设置访问器前都先验证值是否为对象，实现递归每一个属性
+      observer(val);
+      let dep = new Dep(); // 这样每一个属性就能对应一个Dep实例了
+      // 劫持数据属性
+      Object.defineProperty(data, key, {
+        configurable: true,
+        enumerable: true,
+        get() {
+          dep.addSub(); // get触发时会触发addSub来收集当前的Dep.target，即watcher
+          return val;
+        },
+        set(newVal) {
+          if (newVal === val) {
+            return;
+          } else {
+            val = newVal;
+            // 新值也要劫持
+            observer(newVal);
+            dep.notify(); // 通知对应的依赖
+          }
+        }
+      })
+    }
+
+    // 递归判断
+    function observer(data) {
+      // debugger;
+      if (Object.prototype.toString.call(data) === '[object Object]') {
+        new Observer(data);
+      } else {
+        return;
+      }
+    }
+
+    class Dep {
+      constructor() {
+        // 定义一个收集对应属性依赖的容器
+        this.subs = [];
+      }
+      // 收集依赖的方法
+      addSub() {
+        // Dep.target是一个全局变量，用于存储当前的一个watcher
+        this.subs.push(Dep.target);
+      }
+      // set方法被触发时会通知依赖
+      notify() {
+        for (let i = 0; i < this.subs.length; i++) {
+          this.subs[i].cb();
+        }
+      }
+    }
+
+    Dep.target = null;
+
+    class Watch {
+      // 第一个参数为表达式，第二个参数为回调函数
+      constructor(exp, cb) {
+        this.exp = exp;
+        this.cb = cb;
+        Dep.target = this;
+        data[exp]; //data[exp]这句话是不是表示在取某个值，如果exp为a的话，那就表示data.a，在这之前data下的属性已经被我们劫持为访问器属性了，那这就表明我们能触发对应属性的get函数，那这就与observer产生了关联，那既然如此，那在触发get函数的时候能不能把触发者Watch给收集起来呢？此时就得需要一个桥梁Dep来协助了。
+      }
+    }
+
+    let data = {
+      a: 1,
+      b: {
+        c: 3
+      }
+    };
+
+    observer(data);
+
+    // 监听订阅数据的data的属性
+    new Watch('a', () => {
+      alert(1);
+    });
+
+    new Watch('b', () => {
+      alert(2);
+    });
+
+    new Watch('b.c', () => {
+      alert(3);
+    });
+
+    data.b = 2;
+
+
+
+  </script>
+</body>
+</html>
