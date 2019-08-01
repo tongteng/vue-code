@@ -149,6 +149,9 @@
     //   configurable: true
     // }); // Cannot redefine property: name 不能重新定义属性
     // // 总的来说freeze就是在seal的基础上，把seal支持的可以重新赋值属性操作给去掉了，在对象被冻结之后，不能进行任何操作，只能读取
+
+
+    // Vue3.0要用proxy代替defineProperty的原因就是defineProperty无法监听数组下标的变化，监听对象的变化也需要进行一个深度遍历 而proxy可以劫持整个对象，并返回一个新的对象，也能对数组里面的数据进行劫持
   </script>
 </body>
 </html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <div style="width: 500px; height: 500px; background-color: red; display: flex;">
+    <div style="width: 20%; height: 100px; background-color: green; margin: auto;"></div>
+  </div>
+
+  <script>
+    // // 节流函数：在规定时间内只触发一次
+    // function throttle(fn, delay) {
+    //   let prev = Date.now();
+    //   return function () {
+    //     let context = this;
+    //     let args = arguments;
+    //     let now = Date.now();
+    //     if (now - prev >= delay) {
+    //       fn.apply(context, args);
+    //       prev = Date.now();
+    //     }
+    //   }
+    // }
+    // function fn(e) {
+    //   console.log(e);
+    //   console.log('节流');
+    // }
+
+
+    // // 防抖函数：在规定时间内未触发第二次则执行
+    // function debounce(fn, delay) {
+    //   let timer = null;
+    //   return function () {
+    //     let context = this;
+    //     let args = arguments;
+    //     clearTimeout(timer);
+    //     timer = setTimeout(function () {
+    //       fn.apply(context, args);
+    //     }, delay);
+    //   }
+    // }
+    // function fn1(e) {
+    //   console.log(e);
+    //   console.log('防抖');
+    // }
+
+    // let $div = document.getElementsByTagName('div')[0];
+    // // document.addEventListener('scroll', throttle(fn, 1000));
+    // document.addEventListener('scroll', debounce(fn1, 1000));
+
+
+
+
+    // function mynew(fn) {
+    //   return function () {
+    //     var obj = {
+    //       __proto__: fn.prototype
+    //     }
+    //     fn.call(obj, ...arguments);
+    //     return obj;
+    //   }
+    // }
+
+    // function Person(name, sex) {
+    //   this.name = name;
+    //   this.sex = sex;
+    // }
+
+    // let p = mynew(Person)('tt', 'male');
+    // console.log(p);
+
+    const PENDING = 'pending';
+    const RESOLVED = 'resolved';
+    const REJECTED = 'rejected';
+    class myPromise {
+      constructor(fn) {
+        this.state = PENDING;
+        this.value = null;
+        this.resolveCallback = [];
+        this.rejectCallback = [];
+        this.resolve = (val) => {
+          setTimeout(() => {
+            this.value = val;
+            if (this.state === PENDING) {
+              this.state = RESOLVED;
+              if (this.resolveCallback && this.resolveCallback.length > 0) {
+                this.resolveCallback.map(fn => {
+                  if (fn && typeof fn === 'function') {
+                    fn.call(this, this.value);
+                  }
+                })
+              }
+            }
+          })
+        };
+        this.reject = (val) => {
+          setTimeout(() => {
+            this.value = val;
+            if (this.state === PENDING) {
+              this.state = REJECTED;
+              if (this.rejectCallback && this.rejectCallback.length > 0) {
+                this.rejectCallback.map(fn => {
+                  if (fn && typeof fn === 'function') {
+                    fn.call(this, this.value);
+                  }
+                })
+              }
+            }
+          })
+        };
+        if (fn && typeof fn === 'function') {
+          fn.call(this, this.resolve, this.reject);
+        }
+      }
+      then(onFulfill, onReject) {
+        const _this = this;
+        if (!onFulfill || typeof onFulfill !== 'function') {
+          onFulfill = v => v;
+        }
+        if (!onReject || typeof onReject !== 'function') {
+          onReject = (err) => { throw err };
+        }
+        if (_this.state === PENDING) {
+          return new myPromise(function (resolve, reject) {
+            _this.resolveCallback.push(() => {
+              let p2 = onFulfill(_this.value);
+              _this._resolvePromise(p2, resolve, reject);
+            });
+            _this.rejectCallback.push(() => {
+              let p2 = onReject(_this.value);
+              _this._resolvePromise(p2, resolve, reject);
+            })
+          })
+        } else if (_this.state === RESOLVED) {
+          return new myPromise(function (resolve, reject) {
+            try {
+              let p2 = onFulfill(_this.value);
+              _this._resolvePromise(p2, resolve, reject);
+            } catch (err) {
+              reject(err);
+            }
+          })
+        } else {
+          return new myPromise(function (resolve, reject) {
+            try {
+              let p2 = onReject(_this.value);
+              _this._resolvePromise(p2, resolve, reject);
+            } catch (err) {
+              reject(err);
+            }
+          })
+        }
+      }
+
+      _resolvePromise(p2, resolve, reject) {
+        if (p2 instanceof myPromise) {
+          p2.then(res => {
+            try {
+              this._resolvePromise(res, resolve, reject);
+            } catch (err) {
+              reject(err);
+            }
+          })
+        } else {
+          resolve(p2);
+        }
+      }
+    }
+
+    // new myPromise((resolve, reject) => {
+    //   console.log('111');
+    //   resolve(1);
+    // }).then(res => {
+    //   console.log(res);
+    // })
+
+    // new myPromise((resolve, reject) => {
+    //   console.log('222');
+    //   reject(2);
+    // }).then(err => {
+    //   console.log(err);
+    // })
+
+    // var b = 10;
+    // (function b(){
+    //     b = 20;
+    //     console.log(b); 
+    // })();
+
+    // var a = {}, b = '123', c = 123;
+    // a[b] = 'b';
+    // a[c] = 'c';
+    // console.log(a[b]);
+
+
+    Function.prototype.mycall = function (context) {
+      if (typeof this !== 'function') {
+        throw new TypeError('not function')
+      }
+      context = context || window;
+      context.fn = this;
+      let args = [...arguments].slice(1);
+      let result = context.fn(...args);
+      delete context.fn;
+      return result;
+    }
+    function obj () {
+      this.a = '123';
+    }
+    function hehe() {
+      console.log(this.a);
+    }
+
+    hehe.mycall(obj);
+
+    hehe.call(obj);
+
+    
+
+    // Function.prototype.myapply = function (context) {
+    //   if (typeof this !== 'function') {
+    //     throw new TypeError('not funciton')
+    //   }
+    //   context = context || window
+    //   context.fn = this
+    //   let result
+    //   if (arguments[1]) {
+    //     result = context.fn(...arguments[1])
+    //   } else {
+    //     result = context.fn()
+    //   }
+    //   delete context.fn
+    //   return result
+    // }
+
+    function sleep(delay) {
+      return new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    sleep(1000).then(() => {
+      console.log('111')
+    });
+
+    function fbn(index) {
+      if (index == 1 || index == 2) {
+        return 1;
+      } else {
+        return fbn(index - 1) + fbn(index - 2);
+      }
+    }
+
+    console.log(fbn(6));
+
+
+  </script>
+</body>
+</html>

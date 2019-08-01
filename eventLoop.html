@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <div style="width: 100px; height: 10000px; background-color: red;"></div>
+  <script>
+      const $div = document.getElementsByTagName('div')[0];
+      async function async1() {
+        console.log('async1 start');
+        await async2();
+        console.log('async1 end');
+        return 1;
+      }
+
+      async function async2() {
+        console.log('async2');
+      }
+
+      console.log('script start');
+
+      setTimeout(function() {
+        console.log('setTimeout');
+      }, 0);
+
+      async1().then((res) => {
+        console.log(res);
+      });
+
+
+      new Promise(function (resolve) {
+        console.log('promise1');
+        resolve(2);
+      }).then(function (res) {
+        console.log('promise2');
+        console.log(res);
+      });
+
+      console.log('script end');
+
+
+
+  </script>
+</body>
+</html>

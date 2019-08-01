@@ -129,7 +129,7 @@
       }
       addDep(dep) {
         // 如果在depIds的hash中没有当前的id，就可以判断事新的watcher，因此就可以添加到dep的数组中储存
-        // 此判断事避免同id的watcher被多次储存
+        // 此判断事避免同id的watcher被多次储存 
         if (!this.depIds.hasOwnProperty(dep.id)) {
           dep.addSub(this);
           this.depIds[dep.id] = dep;

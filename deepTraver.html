@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <div class="parent">
+    <div class="child-1">
+      <div class="child-1-1">
+        <div class="child-1-1-1">a</div>
+      </div>
+      <div class="child-1-2">
+        <div class="child-1-2-1">b</div>
+      </div>
+      <div class="child-1-3">
+        c
+      </div>
+    </div>
+    <div class="child-2">
+      <div class="child-2-1">d</div>
+      <div class="child-2-2">e</div>
+    </div>
+    <div class="child-3">
+      <div class="child-3-1">f</div>
+    </div>
+  </div>
+  <script>
+    // 深度优先遍历DFS
+    // 假设初始状态所有顶点均未被访问，则从某个顶点v出发，首先访问该顶点然后依次从它的各个未被访问的邻接点出发深度优先搜索遍历图，直至图中所有和v有路径相通的顶点都被访问到。若此时尚有其他顶点未被访问到，则另选一个未被访问的顶点作起始点，重复上述过程，直至图中所有顶点都被访问到为止。
+    let deepTraversal = (node, nodeList = []) => {
+      if (node !== null) {
+        nodeList.push(node);
+        let children = node.children;
+        for (let i = 0; i < children.length; i++) {
+          deepTraversal(children[i], nodeList);
+        }
+      }
+      return nodeList;
+    }
+
+
+    // 广度优先遍历BFS
+    // 从某顶点v出发，在访问了v之后依次访问v的各个未曾访问过的邻接点，然后分别从这些邻接点出发依次访问它们的邻接点，并使得“先被访问的顶点的邻接点先于后被访问的顶点的邻接点被访问，直至图中所有已被访问的顶点的邻接点都被访问到。 如果此时图中尚有顶点未被访问，则需要另选一个未曾被访问过的顶点作为新的起始点，重复上述过程，直至图中所有顶点都被访问到为止。
+    let widthTraversal = (node) => {
+      let nodes = [];
+      let stack = [];
+      if (node) {
+        stack.push(node);
+        while (stack.length) {
+          let item = stack.shift();
+          let children = item.children;
+          nodes.push(item);
+          for (let i = 0; i < children.length; i ++) {
+            stack.push(children[i]);
+          }
+        }
+      }
+      return nodes;
+    }
+
+
+    // let $parent = document.getElementsByClassName('parent')[0];
+    // var nodes = deepTraversal($parent);
+    // console.log(widthTraversal($parent));
+    // console.log(nodes);
+
+    // var a = {
+    //   n: 1
+    // };
+    // var b = a;
+    // a.x = a = {n: 2};
+    // console.log(a.x);
+    // console.log(b.x);
+
+    // console.log([...Array(10000).keys()].filter(item => {
+    //   return item.toString().length > 1 && item === Number(item.toString().split('').reverse().join(''));
+    // }))
+  </script>
+</body>
+</html>
