@@ -7,11 +7,46 @@
   <title>Document</title>
 </head>
 <body>
-  <div style="width: 500px; height: 500px; background-color: red; display: flex;">
+  <div style="width: 500px; height: 5000px; background-color: red; display: flex;">
     <div style="width: 20%; height: 100px; background-color: green; margin: auto;"></div>
   </div>
 
   <script>
+    // fn 回调
+    function throttleByStamp(fn, duration) {
+      let prev = Date.now();
+      return function() {
+        let now = Date.now();
+        if ((now - prev) > duration) {
+          fn.apply(this, arguments);
+          prev = Date.now();
+        }
+      }
+    }
+
+    function throttleByTimer(fn, duration) {
+      let timer = null;
+      return function() {
+        if (timer) return;
+        timer = setTimeout(() => {
+          fn.apply(this, arguments)
+          timer = null;
+        }, duration)
+      }
+    }
+
+    // function throttle(fn, duration) {
+    //   let prev = 
+    // }
+
+
+    function fn(e) {
+      console.log(e);
+      console.log('节流');
+    }
+
+
+
     // // 节流函数：在规定时间内只触发一次
     // function throttle(fn, delay) {
     //   let prev = Date.now();
@@ -48,8 +83,8 @@
     //   console.log('防抖');
     // }
 
-    // let $div = document.getElementsByTagName('div')[0];
-    // // document.addEventListener('scroll', throttle(fn, 1000));
+    let $div = document.getElementsByTagName('div')[0];
+    document.addEventListener('scroll', throttleByStamp(fn, 1000));
     // document.addEventListener('scroll', debounce(fn1, 1000));
 
 
@@ -197,27 +232,25 @@
     // console.log(a[b]);
 
 
-    Function.prototype.mycall = function (context) {
-      if (typeof this !== 'function') {
-        throw new TypeError('not function')
-      }
-      context = context || window;
-      context.fn = this;
-      let args = [...arguments].slice(1);
-      let result = context.fn(...args);
-      delete context.fn;
-      return result;
-    }
-    function obj () {
-      this.a = '123';
-    }
-    function hehe() {
-      console.log(this.a);
-    }
+    // Function.prototype.mycall = function (context) {
+    //   if (typeof this !== 'function') {
+    //     throw new TypeError('not function')
+    //   }
+    //   context = context || window;
+    //   context.fn = this;
+    //   let args = [...arguments].slice(1);
+    //   let result = context.fn(...args);
+    //   delete context.fn;
+    //   return result;
+    // }
+    // function obj () {
+    //   this.a = '123';
+    // }
+    // function hehe() {
+    //   console.log(this.a);
+    // }
 
-    hehe.mycall(obj);
-
-    hehe.call(obj);
+    // hehe.mycall(obj);
 
     
 
@@ -237,23 +270,23 @@
     //   return result
     // }
 
-    function sleep(delay) {
-      return new Promise(resolve => setTimeout(resolve, delay));
-    }
+    // function sleep(delay) {
+    //   return new Promise(resolve => setTimeout(resolve, delay));
+    // }
 
-    sleep(1000).then(() => {
-      console.log('111')
-    });
+    // sleep(1000).then(() => {
+    //   console.log('111')
+    // });
 
-    function fbn(index) {
-      if (index == 1 || index == 2) {
-        return 1;
-      } else {
-        return fbn(index - 1) + fbn(index - 2);
-      }
-    }
+    // function fbn(index) {
+    //   if (index == 1 || index == 2) {
+    //     return 1;
+    //   } else {
+    //     return fbn(index - 1) + fbn(index - 2);
+    //   }
+    // }
 
-    console.log(fbn(6));
+    // console.log(fbn(6));
 
 
   </script>
