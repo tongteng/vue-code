@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div class="wrapper"></div>
+    <script>
+        // weakMap 收集不同对象的依赖，weakMap 与 map 的区别是 weakMap 的 key 绑定的对象可以被垃圾回收机制回收
+        const bucket = new WeakMap();
+        // 被代理的对象
+        const data = {
+            text: '1234',
+            num: 1,
+            a: 2,
+            b: 3
+        }
+        // 依赖函数
+        let activeEffect;
+        const effectStack = [];
+
+        // 读取对象值时吧依赖函数收集起来
+        function track(target, key) {
+            console.log('get', target)
+            // 如果没有依赖函数直接返回该值
+            // if (!activeEffect) return target[key];
+            if (!activeEffect) return;
+
+            // 获取当前对象绑定的依赖
+            let depsMap = bucket.get(target);
+
+            // 如果没有当前对象，则添加一个 key为对象，value 为 map 到 weakMap 中
+            if (!depsMap) {
+                bucket.set(target, (depsMap = new Map()));
+            }
+            // 获取当前 key 的依赖列表
+            let deps = depsMap.get(key);
+            // 如果没有，则创建一个 key 为 key，value 为 set 到 map 中
+            if (!deps) {
+                depsMap.set(key, (deps = new Set()));
+            }
+            // 把依赖函数收集
+            deps.add(activeEffect);
+            // 在依赖函数中，把依赖该依赖函数的依赖也收集起来，每次触发依赖收集时先把之前依赖的函数清除，解决三元表达式中存在不需要依赖函数的情况
+            activeEffect.deps.push(deps);
+        }
+        // 当设置某个值时，把依赖函数都重新执行一遍
+        function trigger(target, key) {
+            // 在 weakMap 中获取当前对象的 map
+            const depsMap = bucket.get(target);
+            // console.log(depsMap);
+            if (!depsMap) return;
+            // 获取当前 key 收集的依赖函数列表 set
+            const effects = depsMap.get(key);
+            // 为了解决 set 在遍历时被删除再被添加的一直执行下去的问题，快照一份 set，原 set 该删删 该加加
+            const effectsToRun = new Set();
+            // console.log('effects', effects);
+            effects && effects.forEach(effectFn => {
+                // console.log(effectFn, activeEffect)
+                if (effectFn !== activeEffect) {
+                    effectsToRun.add(effectFn);
+                }
+            })
+            // console.log('effectsToRun', effectsToRun)
+            // 把所有依赖当前 key 的依赖函数执行
+            effectsToRun && effectsToRun.forEach(effectFn => {
+                if (effectFn.options.scheduler) {
+                    effectFn.options.scheduler(effectFn);
+                } else {
+                    effectFn();
+                }
+            });
+        }
+
+        // 劫持 data
+        const obj = new Proxy(data, {
+            // 触发读取时收集依赖函数
+            get(target, key) {
+                track(target, key);
+                return target[key];
+            },
+            // 触发写入时执行依赖函数
+            set(target, key, newVal) {
+                target[key] = newVal;
+                trigger(target, key);
+                console.log('set', target);
+            }
+        })
+        // 每次执行依赖之前，先把key 中依赖当前函数的都给删掉，再重新触发收集依赖，防止依赖函数在执行时存在三元函数导致不需要的 key 依赖这个函数
+        function cleanup(effectFn) {
+            effectFn.deps.forEach(deps => {
+                deps.delete(effectFn);
+            })
+            effectFn.deps.length = 0;
+        }
+        // 设置依赖函数
+        function effect(fn, options = {}) {
+            const effectFn = () => {
+                cleanup(effectFn);
+                activeEffect = effectFn;
+                effectStack.push(effectFn);
+                const res = fn();
+                effectStack.pop(effectFn);
+                activeEffect = effectStack[effectStack.length - 1];
+
+                return res;
+            }
+            effectFn.options = options;
+            effectFn.deps = [];
+            if (!options.lazy) {
+                effectFn();
+            } else {
+                return effectFn;
+            }
+        }
+
+        function traverse(value, seen = new Set()) {
+            console.log('traverse');
+            if (typeof value !== 'object' || value === null || seen.has(value)) return;
+
+            seen.add(value);
+            for (const k in value) {
+                traverse(value[k], seen);
+            }
+            return value;
+        }
+
+        function watch(source, cb, options = {}) {
+            let getter;
+            if (typeof source === 'function') {
+                getter = source;
+            } else {
+                getter = () => traverse(source);
+            }
+            let oldValue, newValue, cleanFn;
+            const onInvalidate = (fn) => {
+                cleanFn = fn;
+            }
+            const job = () => {
+                newValue = effectFn();
+                cleanFn && cleanFn();
+                cb(newValue, oldValue, onInvalidate);
+                oldValue = newValue;
+            }
+            const effectFn = effect(getter, {
+                lazy: true,
+                scheduler: () => {
+                    if (options.flush === 'post') {
+                        let p = Promise.resolve();
+                        p.then(() => {
+                            job();
+                        });
+                    } else {
+                        job();
+                    }
+                }
+            });
+            if (options.immediate) {
+                job();
+            } else {
+                oldValue = effectFn();
+            }
+        }
+
+        // effect(() => {
+        //     console.log(obj.a);
+        //     console.log(obj.b);
+        // })
+
+        // obj.a = 10;
+
+        async function asyncFunc() {
+            return new Promise((resolve, reject) => {
+                console.log('111')
+                setTimeout(() => {
+                    resolve(1);
+                }, 5000)
+            })
+        }
+
+        watch(() => obj.a, async (newVal, oldVal, onInvalidate) => {
+            // console.log(JSON.parse(JSON.stringify(obj)));
+            let expired = false;
+            onInvalidate(() => {
+                expired = true;
+            })
+            const asyncData = await asyncFunc();
+            if (!expired) {
+                console.log('asyncData', asyncData);
+                console.log('watchValValid', newVal, oldVal);
+            } else {
+                console.log('watchValinValid', newVal, oldVal);
+            }
+        }, {
+            immediate: true,
+            flush: 'post'
+        })
+        setTimeout(() => {
+            obj.a = 5;
+        }, 1000)
+        // obj.b ++;
+        // obj.text = 123;
+
+        function computed(getter) {
+            let dirty = true;
+            let value;
+            const effectFn = effect(getter, {
+                lazy: true,
+                scheduler: () => {
+                    if (!dirty) {
+                        dirty = true;
+                        trigger(obj, 'value');
+                    }
+                }
+            });
+            const obj = {
+                get value() {
+                    if (dirty) {
+                        value = effectFn();
+                        dirty = false;
+                    }
+                    track(obj, 'value');
+                    return value;
+                }
+            };
+            return obj;
+        }
+
+        // const sumRes = computed(() => {
+        //     return obj.a + obj.b;
+        // })
+
+        // effect(() => {
+        //     console.log(sumRes.value);
+        //     console.log(sumRes.value);
+        // })
+
+        // console.log(sumRes.value);
+        // console.log(sumRes.value);
+        // obj.a ++;
+        // console.log(sumRes.value);
+        // 将执行函数收集到依赖中
+        // effect(() => {
+        //     // document.getElementsByClassName('wrapper')[0].innerText = obj.text;
+        //     obj.num ++;
+        // })
+
+        // let temp1, temp2;
+        // effect(function effectFun1() {
+        //     console.log('effectfunc1');
+        //     effect(function effectFun2() {
+        //         console.log('effectfunc2');
+        //         temp2 = obj.num;
+        //     })
+        //     temp1 = obj.text
+        // })
+
+        // 短期频繁执行只拿最好的结果
+        // const jobQueue = new Set();
+        // const p = Promise.resolve();
+        // let isFlushing = false;
+        // function flushJob() {
+        //     if (isFlushing) return;
+        //     isFlushing = true;
+        //     p.then(() => {
+        //         jobQueue.forEach(job => job());
+        //     }).finally(() => {
+        //         isFlushing = false;
+        //     })
+        // }
+
+        // effect(() => {
+        //     console.log(obj.num);
+        // }, {
+        //     scheduler: (fn) => {
+        //         // setTimeout(fn);
+        //         // fn();
+        //         jobQueue.add(fn);
+        //         flushJob();
+        //     },
+        //     lazy: true
+        // })
+
+        // obj.num ++;
+        // obj.num ++;
+        // console.log('结束了');
+
+
+        // setTimeout(() => {
+        //     obj.text = '2234'
+        // }, 2000)
+
+        // setTimeout(() => {
+        //     obj.num ++;
+        // }, 2000)
+    </script>
+</body>
+
+</html>
